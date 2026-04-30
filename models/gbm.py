@@ -13,7 +13,7 @@ def gbm_discrete(conn_str, account_id, N, T, graph=False):
     cov_matrix = log_returns.cov().values
     mu_array = log_returns.mean().values
     sigma_array = log_returns.std().values
-    drift_array = mu_array - (0.5 * sigma_array ** 2)
+    drift_array = mu_array
     corr_matrix = cov_matrix / sigma_array[:,None] / sigma_array
     L = np.linalg.cholesky(corr_matrix)
 

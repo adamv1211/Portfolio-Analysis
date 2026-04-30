@@ -36,8 +36,8 @@ def main():
 
 
 
-    gbm.gbm_discrete(conn_str, 1, 3, 252)
     
+
   
   
 
