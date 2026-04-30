@@ -5,19 +5,19 @@ from faker import Faker
 import random
 
 
-def db_reset(db_name, admin_conn_str = "dbname=postgres user=postgres password=pass host=localhost"):
+def db_reset(db_name, admin_conn_str = "dbname=postgres user=postgres password=LUNA host=localhost"):
     with psycopg.connect(admin_conn_str) as conn:
         conn.autocommit = True
         with conn.cursor() as cur:
             cur.execute(f"DROP DATABASE IF EXISTS {db_name};")
 
 
-def db_create(db_name, admin_conn_str = "dbname=postgres user=postgres password=pass host=localhost"):
+def db_create(db_name, admin_conn_str = "dbname=postgres user=postgres password=LUNA host=localhost"):
     with psycopg.connect(admin_conn_str) as conn:
         conn.autocommit = True
         with conn.cursor() as cur:
             try:
-                cur.execute(f"CREATE DATABASE {db_name};")
+                cur.execute(f"CREATE DATABASE {db_name} OWNER adam;")
             except psycopg.errors.DuplicateDatabase:
                 pass
 

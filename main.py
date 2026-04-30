@@ -6,27 +6,26 @@ import psycopg
 from faker import Faker
 from db_setup import *
 from create_table_util import create_table
-from gbm_util import gbm
+from models import gbm
 from portfolio_data import dal, metrics
 
          
 def main():
-    test = True
+    DEBUG = False
 
-    db_name = "portfolio_risk_sim"
+    db_name = "portfolio_analysis_sim"
+        
 
-    if test == False:
-        db_reset(db_name)
-
-    #psql -h localhost -U postgres -d portfolio_risk_sim
-    conn_str = "dbname=portfolio_risk_sim user=postgres password=pass host=localhost"
+    #psql -h localhost -U postgres -d portfolio_analysis_sim
+    conn_str = "dbname=portfolio_analysis_sim user=adam password=LUNA host=localhost"
     tickers = ["AAPL", "NVDA", "TSLA", "MSFT", "SPY", "QQQ", "XLE", "GLD", "BTC-USD", "ETH-USD", "XLF", "PLTR", "JNJ", "AMZN", "XOM", "TLT", "BND", "IWM"]
     tpy = tickers + ["^TNX", "^IRX"]
     tickers.sort()
     period = "10y"
 
     
-    if test == False:
+    if DEBUG:
+        db_reset(db_name)
         db_create(db_name)
         seed_customers(conn_str)
         seed_accounts(conn_str)
@@ -37,8 +36,8 @@ def main():
 
 
 
-    gbm(conn_str, 1, 1, 252)
-
+    gbm.gbm_discrete(conn_str, 1, 3, 252)
+    
   
   
 
