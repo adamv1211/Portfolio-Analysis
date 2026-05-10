@@ -34,8 +34,8 @@ def main():
         seed_holdings(conn_str, tickers)
         print("ALL TABLES MADE SUCCESSFULLY")
 
-
-
+    #metrics.sharpe(conn_str, 3)
+    metrics.value_at_risk_parametric(conn_str, 2,)
     
 
   
