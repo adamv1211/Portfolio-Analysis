@@ -80,7 +80,7 @@ def sharpe(conn_str, account_id, period='3y'):
      print(E_t / sigma_E * 252 ** 0.5)
      return E_t / sigma_E * 252 ** 0.5
 
-#Not complete
+
 def value_at_risk_parametric(conn_str, account_id, T=252, period='3y'):
      holdings_df = dal.get_holdings_dat(conn_str, account_id)
      indexed_holdings_df = holdings_df.set_index('ticker')
