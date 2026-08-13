@@ -77,7 +77,6 @@ def sharpe(conn_str, account_id, period='3y'):
   
      E_t = excess_returns.mean()
      sigma_E = excess_returns.std()
-     print(E_t / sigma_E * 252 ** 0.5)
      return E_t / sigma_E * 252 ** 0.5
 
 
@@ -100,10 +99,11 @@ def value_at_risk_parametric(conn_str, account_id, T=252, period='3y'):
      mu = weighted_returns.mean()
      sigma = weighted_returns.std()
      VaR_percent = -1 * (mu * T + z*sigma*np.sqrt(T))
-     print(VaR_percent)
+     #print(VaR_percent)
      VaR_value = (np.exp(VaR_percent) -1)* indexed_holdings_df['value'].sum()
-     print(f"starting: {indexed_holdings_df['value'].sum()} - loss of {VaR_value}. est portfolio value : {(indexed_holdings_df['value'].sum()) + VaR_value}")
-     print(VaR_value)
+     # print(f"starting: {indexed_holdings_df['value'].sum()} - loss of {VaR_value}. est portfolio value : {(indexed_holdings_df['value'].sum()) + VaR_value}")
+     # print(VaR_value)
+     return VaR_value
 
 
  

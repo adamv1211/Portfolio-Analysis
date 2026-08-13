@@ -1,3 +1,4 @@
+import argparse
 import os
 import pandas as pd
 import numpy as np
@@ -13,12 +14,20 @@ from portfolio_data import dal, metrics
          
 def main():
     DEBUG = True
+    REBUILD = False
+
+    if os.path.exists(".env"):
+        with open(".env") as f:
+            for line in f:
+                if line.strip() and not line.startswith("#"):
+                    key, value = line.strip().split("=", 1)
+                    os.environ[key] = value
 
     db_name = "portfolio_analysis_sim"
     db_user = os.getenv("DB_USER") 
     db_password = os.getenv("DB_PASS")
     db_admin_password = os.getenv("DB_ADMIN_PASS")
-
+    
     #psql -h localhost -U postgres -d portfolio_analysis_sim
     conn_str = f"dbname=portfolio_analysis_sim user={db_user} password={db_password} host=localhost"
     admin_conn_str = f"dbname=postgres user=postgres password={db_admin_password} host=localhost"
@@ -26,9 +35,8 @@ def main():
     tpy = tickers + ["^TNX", "^IRX"]
     tickers.sort()
     period = "10y"
-
     
-    if DEBUG:
+    if REBUILD:
         db_reset(db_name, admin_conn_str)
         db_create(db_name, admin_conn_str)
         seed_customers(conn_str)
@@ -38,13 +46,22 @@ def main():
         seed_holdings(conn_str, tickers)
         print("ALL TABLES MADE SUCCESSFULLY")
 
-    #metrics.sharpe(conn_str, 3)
-    metrics.value_at_risk_parametric(conn_str, 2,)
-    
+    account_number = 2
+    period = "3y"
+    # N = monte carlo sims, T = DAYS (time steps)
+    N=1000
+    T=252
 
-  
-  
-
+    print("Holdings")
+    print(dal.get_holdings_dat(conn_str, account_number))
+    print("VaR")
+    print(metrics.value_at_risk_parametric(conn_str, account_number))
+    print("Sharpe Ratio")
+    print(metrics.sharpe(conn_str, account_number))
+    print("gbm discrete")
+    print(gbm.gbm_discrete(conn_str, account_number, N, T))
+    print("gbm closed")
+    print(gbm.gbm_closed(conn_str, account_number, N, T))
 
 if __name__ == "__main__":
     main()
