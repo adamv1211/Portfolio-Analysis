@@ -46,11 +46,12 @@ def main():
         seed_holdings(conn_str, tickers)
         print("ALL TABLES MADE SUCCESSFULLY")
 
-    account_number = 2
+    account_number = 1
     period = "3y"
     # N = monte carlo sims, T = DAYS (time steps)
-    N=1000
+    N=10000
     T=252
+
 
     print("Holdings")
     print(dal.get_holdings_dat(conn_str, account_number))
@@ -59,9 +60,9 @@ def main():
     print("Sharpe Ratio")
     print(metrics.sharpe(conn_str, account_number))
     print("gbm discrete")
-    print(gbm.gbm_discrete(conn_str, account_number, N, T))
+    print(gbm.gbm_discrete(conn_str, account_number, N, T, False))
     print("gbm closed")
-    print(gbm.gbm_closed(conn_str, account_number, N, T))
+    print(gbm.gbm_closed(conn_str, account_number, N, T, True))
 
 if __name__ == "__main__":
     main()

@@ -180,9 +180,9 @@ def seed_holdings(conn_str, tickers):
             accounts = [row[0] for row in cur.fetchall()]
 
             for account_id in accounts:
-                owned = random.sample(tickers, k=random.randint(1, 16))
+                owned = random.sample(tickers, k=random.randint(4, 17))
                 for ticker in owned:
-                    shares = random.randint(1, 1204)
+                    shares = random.uniform(0.1, 3) if ticker in ["BTC-USD", "ETH-USD"] else random.randint(1, 1500)
                     cur.execute("""INSERT INTO holdings (account_id, ticker, shares)
                                     VALUES (%s, %s, %s)
                                     ON CONFLICT (account_id, ticker) DO UPDATE SET

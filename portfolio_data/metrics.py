@@ -80,13 +80,12 @@ def sharpe(conn_str, account_id, period='3y'):
      return E_t / sigma_E * 252 ** 0.5
 
 
-def value_at_risk_parametric(conn_str, account_id, T=252, period='3y'):
+def value_at_risk_parametric(conn_str, account_id, p=0.95, T=252):
      holdings_df = dal.get_holdings_dat(conn_str, account_id)
      indexed_holdings_df = holdings_df.set_index('ticker')
      log_returns_df_wide, R_0_array = log_returns(conn_str, holdings_df["ticker"].tolist())
      
      #Calculations for z score for given confidence interval p
-     p = 0.95 
      q = p if p < 0.5 else 1 - p
      t = (-2.0 * np.log(q)) ** 0.5
      # Coeficients found in "Handbook of Mathematical Functions by Abramowitz and Stegun" Formula 26.2.23, pg. 933 (pdf version)
@@ -99,11 +98,14 @@ def value_at_risk_parametric(conn_str, account_id, T=252, period='3y'):
      mu = weighted_returns.mean()
      sigma = weighted_returns.std()
      VaR_percent = -1 * (mu * T + z*sigma*np.sqrt(T))
-     #print(VaR_percent)
-     VaR_value = (np.exp(VaR_percent) -1)* indexed_holdings_df['value'].sum()
-     # print(f"starting: {indexed_holdings_df['value'].sum()} - loss of {VaR_value}. est portfolio value : {(indexed_holdings_df['value'].sum()) + VaR_value}")
-     # print(VaR_value)
-     return VaR_value
+     VaR_dollar = (np.exp(VaR_percent) -1)* indexed_holdings_df['value'].sum()
+
+     return {
+          "VaR_value": abs(VaR_dollar),
+          "VaR_dollar": VaR_dollar,
+          "VaR_percent": VaR_percent,
+
+     }
 
 
  
