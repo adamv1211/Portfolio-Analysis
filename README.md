@@ -20,11 +20,11 @@ The following functions are for creating and resetting the database.
 db_reset
 db_create
 
-The following functions are used to seed the created tables.
-seed_customers
-seed_accounts
-seed_assets
-seed_prices
+The following functions are used to seed the created tables. \n 
+seed_customers\n
+seed_accounts \n
+seed_assets \n
+seed_prices \n
 
 seed_holdings - Adds randomized holdings for accounts.
 Accounts are given at least 4 assets from the chosen list of securities added to the assets table.
@@ -67,7 +67,7 @@ VaR_percent = the percent lost in a portfolio
 
 For the Z score, I used an approximation found in "Handbook of Mathematical Functions by Abramowitz and Stegun" to avoid importing Scipy for a single use. The formula and constants can be found on pg. 933 (pdf version), figure 26.2.23. 
 
-$$\text{VaR}_{\$} = \left( \exp\left( -\left( \mu_p T + z \sigma_p \sqrt{T} \right) \right) - 1 \right) V_0$$
+$$\text{VaR}= \left( \exp\left( -\left( \mu_p T + z \sigma_p \sqrt{T} \right) \right) - 1 \right) V_0$$
 
 
 Data Access Layer (dal.py): Decouples quantitative logic from database queries, ensuring the modeling engine remains database-agnostic.
