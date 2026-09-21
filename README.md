@@ -59,6 +59,8 @@ metrics.py: A statistical engine for calculating Sharpe Ratios, Log-Returns, and
 the following functions are used for arithmatic and logarithmic returns. Currenlty they are not intended to be called alone, and are meant to be used in addition to other functions such as GBM or finding Sharpe ratio. This may change in a later update.
 
 standard_returns(conn_str, tickers)
+
+
 log_returns(conn_str, tickers)
 
 
