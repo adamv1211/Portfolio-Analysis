@@ -20,11 +20,19 @@ The following functions are for creating and resetting the database.
 db_reset
 db_create
 
-The following functions are used to seed the created tables. \n 
-seed_customers\n
-seed_accounts \n
-seed_assets \n
-seed_prices \n
+The following functions are used to seed the created tables.
+
+
+seed_customers
+
+
+seed_accounts 
+
+
+seed_assets 
+
+
+seed_prices 
 
 seed_holdings - Adds randomized holdings for accounts.
 Accounts are given at least 4 assets from the chosen list of securities added to the assets table.
