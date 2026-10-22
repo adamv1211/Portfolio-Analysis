@@ -1,8 +1,9 @@
 import psycopg
 import yfinance as yf
-from create_table_util import create_table
+from db_functions import create_table_util, db_update
 from faker import Faker
 import random
+from functools import partial
 
 
 def db_reset(db_name, admin_conn_str):
@@ -21,6 +22,39 @@ def db_create(db_name, admin_conn_str):
             except psycopg.errors.DuplicateDatabase:
                 pass
 
+def db_ready_check(conn_str, db_name, tickers, tpy, period):
+        rebuild = False
+        try:
+            with psycopg.connect(conn_str) as conn:
+                conn.autocommit = True
+                with conn.cursor() as cur:
+                    cur.execute("SELECT 1 FROM pg_database WHERE datname = %s;", (db_name,))
+                    if cur.fetchone():
+                        print(f"Database {db_name} found.")
+                        expected_tables = ['customers', 'accounts', 'assets', 'prices', 'holdings']
+                        cur.execute("SELECT table_name FROM information_schema.tables WHERE table_schema = 'public';")
+                        found_tables= [table for (table,) in cur.fetchall()]
+                        missing_tables = set(expected_tables) - set(found_tables)
+                        if not missing_tables:
+                            print("All tables present")
+                            return False
+                        else:
+                            print(f"Tables missing: {missing_tables} ....rebuilding")
+                            seed_tasks = {
+                                "customers": partial(seed_customers, conn_str),
+                                "accounts": partial(seed_accounts, conn_str),
+                                "assets": partial(seed_assets, conn_str, tpy),
+                                "prices": partial(seed_prices, conn_str, tpy, period),
+                                "holdings": partial(seed_holdings, conn_str, tickers)
+                            }
+                            for table in missing_tables:
+                                print(f"Rebuilding table {table}")
+                                seed_tasks[table]()
+                            print(f"All tables present")    
+        except psycopg.OperationalError:
+            print(f"Database {db_name} not found.... Rebuilding")
+            rebuild = True
+        return rebuild
 
 
 def seed_customers(conn_str):
@@ -51,7 +85,7 @@ def seed_customers(conn_str):
 
 
 
-    create_table(conn_str, "customers", customers_schema, "customer_id")
+    create_table_util.create_table(conn_str, "customers", customers_schema, "customer_id")
     
     with psycopg.connect(conn_str) as conn:
         with conn.cursor() as cur:
@@ -90,7 +124,7 @@ def seed_accounts(conn_str):
         "account_type" : "VARCHAR(30) NOT NULL",
     }
 
-    create_table(conn_str, "accounts", accounts_schema, "account_id")
+    create_table_util.create_table(conn_str, "accounts", accounts_schema, "account_id")
 
     with psycopg.connect(conn_str) as conn:
         with conn.cursor() as cur:
@@ -100,7 +134,7 @@ def seed_accounts(conn_str):
                                 ON CONFLICT (account_id) DO UPDATE SET
                                 customer_id = EXCLUDED.customer_id,
                                 account_type = EXCLUDED.account_type
-                                """, (account["customer_id"], account["account_type"])
+                                """, (account["customer_id"], account["account_type"],)
                 )
 
 
@@ -122,7 +156,7 @@ def seed_assets(conn_str, tickers):
         "currency" : "VARCHAR(10)"
     }
 
-    create_table(conn_str, "assets", assets_schema,"ticker")
+    create_table_util.create_table(conn_str, "assets", assets_schema,"ticker")
 
     
     with psycopg.connect(conn_str) as conn:
@@ -133,7 +167,7 @@ def seed_assets(conn_str, tickers):
                     ON CONFLICT (ticker) DO UPDATE SET
                     name = EXCLUDED.name,
                     asset_type = EXCLUDED.asset_type,
-                    currency = EXCLUDED.currency""", (asset["ticker"], asset["name"], asset["asset_type"], asset["currency"]))
+                    currency = EXCLUDED.currency""", (asset["ticker"], asset["name"], asset["asset_type"], asset["currency"],))
 
 def seed_prices(conn_str, tickers, period ="3y"):
     prices_info = []
@@ -154,7 +188,7 @@ def seed_prices(conn_str, tickers, period ="3y"):
         "close" : "DECIMAL(12,4) NOT NULL",
         "volume" : "BIGINT"
     }
-    create_table(conn_str, "prices", prices_schema, "ticker, date")
+    create_table_util.create_table(conn_str, "prices", prices_schema, "ticker, date")
     with psycopg.connect(conn_str) as conn:
         with conn.cursor() as cur:
             for asset in prices_info:
@@ -164,7 +198,7 @@ def seed_prices(conn_str, tickers, period ="3y"):
                         DO UPDATE SET 
                         close = EXCLUDED.close,
                         volume = EXCLUDED.volume
-                        """, (asset["ticker"], asset["date"], asset["close"], asset["volume"]))
+                        """, (asset["ticker"], asset["date"], asset["close"], asset["volume"],))
 def seed_holdings(conn_str, tickers):
 
     holdings_schema = {
@@ -173,7 +207,7 @@ def seed_holdings(conn_str, tickers):
         "shares": "DECIMAL(12, 4) NOT NULL",
 
     }
-    create_table(conn_str, "holdings", holdings_schema, "account_id, ticker")
+    create_table_util.create_table(conn_str, "holdings", holdings_schema, "account_id, ticker")
     with psycopg.connect(conn_str) as conn:
         with conn.cursor() as cur:
             cur.execute("SELECT account_id FROM accounts")
@@ -187,5 +221,5 @@ def seed_holdings(conn_str, tickers):
                                     VALUES (%s, %s, %s)
                                     ON CONFLICT (account_id, ticker) DO UPDATE SET
                                     shares = EXCLUDED.shares
-                                """, (account_id, ticker, shares)
+                                """, (account_id, ticker, shares,)
                                 )

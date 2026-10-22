@@ -1,21 +1,15 @@
 import argparse
 import os
-import pandas as pd
-import numpy as np
-import matplotlib.pyplot as plt
 import yfinance as yf
 import psycopg
-from faker import Faker
-from db_setup import *
-from create_table_util import create_table
+from db_functions import db_setup, db_update 
 from models import gbm
 from portfolio_data import dal, metrics
 
          
 def main():
-    DEBUG = True
-    REBUILD = False
-
+    rebuild = False
+    
     if os.path.exists(".env"):
         with open(".env") as f:
             for line in f:
@@ -28,29 +22,34 @@ def main():
     db_password = os.getenv("DB_PASS")
     db_admin_password = os.getenv("DB_ADMIN_PASS")
     
-    #psql -h localhost -U postgres -d portfolio_analysis_sim
-    conn_str = f"dbname=portfolio_analysis_sim user={db_user} password={db_password} host=localhost"
+    conn_str = f"dbname={db_name} user={db_user} password={db_password} host=localhost"
     admin_conn_str = f"dbname=postgres user=postgres password={db_admin_password} host=localhost"
     tickers = ["AAPL", "NVDA", "TSLA", "MSFT", "SPY", "QQQ", "XLE", "GLD", "BTC-USD", "ETH-USD", "XLF", "PLTR", "JNJ", "AMZN", "XOM", "TLT", "BND", "IWM"]
     tpy = tickers + ["^TNX", "^IRX"]
     tickers.sort()
     period = "10y"
-    
-    if REBUILD:
-        db_reset(db_name, admin_conn_str)
-        db_create(db_name, admin_conn_str)
-        seed_customers(conn_str)
-        seed_accounts(conn_str)
-        seed_assets(conn_str, tpy)
-        seed_prices(conn_str, tpy, period)
-        seed_holdings(conn_str, tickers)
+
+
+
+
+    rebuild = db_setup.db_ready_check(conn_str, db_name, tickers, tpy, period)
+
+    if not rebuild:
+        db_update.update_prices(conn_str)
+
+    else:
+        db_setup.db_reset(db_name, admin_conn_str)
+        db_setup.db_create(db_name, admin_conn_str)
+        db_setup.seed_customers(conn_str)
+        db_setup.seed_accounts(conn_str)
+        db_setup.seed_assets(conn_str, tpy)
+        db_setup.seed_prices(conn_str, tpy, period)
+        db_setup.seed_holdings(conn_str, tickers)
         print("ALL TABLES MADE SUCCESSFULLY")
 
     account_number = 1
-    period = "3y"
-    # N = monte carlo sims, T = DAYS (time steps)
-    N=10000
-    T=252
+    N=10000 # Number of Sims
+    T=252 # T = DAYS (time steps)
 
 
     print("Holdings")
@@ -63,6 +62,7 @@ def main():
     print(gbm.gbm_discrete(conn_str, account_number, N, T, False))
     print("gbm closed")
     print(gbm.gbm_closed(conn_str, account_number, N, T, True))
+    
 
 if __name__ == "__main__":
     main()

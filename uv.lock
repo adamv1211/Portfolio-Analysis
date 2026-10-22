@@ -575,6 +575,7 @@ dependencies = [
     { name = "numpy" },
     { name = "pandas" },
     { name = "psycopg", extra = ["binary"] },
+    { name = "requests" },
     { name = "yfinance" },
 ]
 
@@ -585,6 +586,7 @@ requires-dist = [
     { name = "numpy", specifier = ">=2.4.2" },
     { name = "pandas", specifier = ">=3.0.1" },
     { name = "psycopg", extras = ["binary"], specifier = ">=3.3.3" },
+    { name = "requests", specifier = ">=2.32.5" },
     { name = "yfinance", specifier = ">=1.2.0" },
 ]
 
