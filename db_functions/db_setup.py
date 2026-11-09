@@ -1,16 +1,19 @@
 import psycopg
 import yfinance as yf
-from db_functions import create_table_util, db_update
+from db_functions.create_table_util import create_table
 from faker import Faker
 import random
 from functools import partial
-
+from random_portfolio_builder import portfolio_base, portfolio_conservative, portfolio_moderate, portfolio_aggressive, portfolio_crypto
+from portfolio_data import dal
+from get_tickers import get_common_ticker_list
 
 def db_reset(db_name, admin_conn_str):
     with psycopg.connect(admin_conn_str) as conn:
         conn.autocommit = True
         with conn.cursor() as cur:
             cur.execute(f"DROP DATABASE IF EXISTS {db_name};")
+    print(f"Database {db_name} DROPPED...")
 
 
 def db_create(db_name, admin_conn_str):
@@ -19,10 +22,11 @@ def db_create(db_name, admin_conn_str):
         with conn.cursor() as cur:
             try:
                 cur.execute(f"CREATE DATABASE {db_name} OWNER adam;")
+                print(f"Database {db_name} Added...")
             except psycopg.errors.DuplicateDatabase:
                 pass
 
-def db_ready_check(conn_str, db_name, tickers, tpy, period):
+def db_ready_check(conn_str, db_name, tickers_in_use, common_ticker_list, period):
         rebuild = False
         try:
             with psycopg.connect(conn_str) as conn:
@@ -43,9 +47,9 @@ def db_ready_check(conn_str, db_name, tickers, tpy, period):
                             seed_tasks = {
                                 "customers": partial(seed_customers, conn_str),
                                 "accounts": partial(seed_accounts, conn_str),
-                                "assets": partial(seed_assets, conn_str, tpy),
-                                "prices": partial(seed_prices, conn_str, tpy, period),
-                                "holdings": partial(seed_holdings, conn_str, tickers)
+                                "assets": partial(seed_assets, conn_str, tickers_in_use),
+                                "prices": partial(seed_prices, conn_str, tickers_in_use, period),
+                                "holdings": partial(seed_holdings, conn_str, common_ticker_list)
                             }
                             for table in missing_tables:
                                 print(f"Rebuilding table {table}")
@@ -85,12 +89,11 @@ def seed_customers(conn_str):
 
 
 
-    create_table_util.create_table(conn_str, "customers", customers_schema, "customer_id")
+    create_table(conn_str, "customers", customers_schema, "customer_id")
     
     with psycopg.connect(conn_str) as conn:
         with conn.cursor() as cur:
-            for customer in customers:
-                cur.execute("""INSERT INTO customers (customer_id, name, ssn, address, phone_number, email)
+            insert_query = """INSERT INTO customers (customer_id, name, ssn, address, phone_number, email)
                             VALUES (%s, %s, %s, %s, %s, %s)
                             ON CONFLICT (customer_id) DO UPDATE SET
                             name = EXCLUDED.name,
@@ -98,44 +101,52 @@ def seed_customers(conn_str):
                             address = EXCLUDED.address,
                             phone_number =  EXCLUDED.phone_number,
                             email =  EXCLUDED.email
-                            """, (customer["customer_id"], customer["name"], customer["ssn"], customer["address"], customer["phone_number"], customer["email"])
-                )
+                            """
+            customer_insert_data = []
+            for customer in customers:
+                customer_insert_data.append((customer["customer_id"], customer["name"], customer["ssn"], customer["address"], customer["phone_number"], customer["email"]))
+            cur.executemany(insert_query, customer_insert_data)
 
 
 def seed_accounts(conn_str):
 
     accounts = []
+    archetypes = ["conservative", "moderate", "aggressive", "crypto"]
+    starting_amounts = [25000.0, 50000.0, 100000.0, 150000.0, 200000.0, 250000.0, 500000.0, 750000.0, 1000000.0, 1500000.0]
     for i in range(1, 1001):
-        accounts.append({
-            "customer_id": i,
-            "account_type": "Individual Brokerage",
-    
-        })
+        accounts.append((
+            i,
+            "Individual Brokerage",
+            random.choice(starting_amounts),
+            random.choice(archetypes),
+        ))
 
-        accounts.append({
-            "customer_id": i,
-            "account_type": "Traditional IRA",
+        accounts.append((
+            i,
+            "Traditional IRA",
+            random.choice(starting_amounts),
+            random.choice(archetypes),
   
-        })
+        ))
     
     accounts_schema = {
         "customer_id" : "INT",
         "account_id" : "SERIAL",
         "account_type" : "VARCHAR(30) NOT NULL",
+        "starting_capital" : "DECIMAL(12,4)",
+        "archetype": "VARCHAR(30) NOT NULL",
     }
 
-    create_table_util.create_table(conn_str, "accounts", accounts_schema, "account_id")
+    create_table(conn_str, "accounts", accounts_schema, "account_id")
+    insert_query = """INSERT INTO accounts (customer_id, account_type, starting_capital, archetype)
+                                VALUES (%s, %s, %s, %s)
+
+                                """
 
     with psycopg.connect(conn_str) as conn:
         with conn.cursor() as cur:
-            for account in accounts:
-                cur.execute("""INSERT INTO accounts (customer_id, account_type)
-                                VALUES (%s, %s)
-                                ON CONFLICT (account_id) DO UPDATE SET
-                                customer_id = EXCLUDED.customer_id,
-                                account_type = EXCLUDED.account_type
-                                """, (account["customer_id"], account["account_type"],)
-                )
+            cur.executemany(insert_query, accounts)
+
 
 
 def seed_assets(conn_str, tickers):
@@ -156,18 +167,22 @@ def seed_assets(conn_str, tickers):
         "currency" : "VARCHAR(10)"
     }
 
-    create_table_util.create_table(conn_str, "assets", assets_schema,"ticker")
+    create_table(conn_str, "assets", assets_schema,"ticker")
 
     
     with psycopg.connect(conn_str) as conn:
         with conn.cursor() as cur:
-            for asset in asset_info:
-                cur.execute("""INSERT INTO assets (ticker, name, asset_type, currency) 
+            insert_query = """INSERT INTO assets (ticker, name, asset_type, currency) 
                     VALUES (%s, %s, %s, %s) 
                     ON CONFLICT (ticker) DO UPDATE SET
                     name = EXCLUDED.name,
                     asset_type = EXCLUDED.asset_type,
-                    currency = EXCLUDED.currency""", (asset["ticker"], asset["name"], asset["asset_type"], asset["currency"],))
+                    currency = EXCLUDED.currency"""
+            asset_insert_data = []
+            for asset in asset_info:
+                asset_insert_data.append((asset["ticker"], asset["name"], asset["asset_type"], asset["currency"]))
+            cur.executemany(insert_query, asset_insert_data)
+
 
 def seed_prices(conn_str, tickers, period ="3y"):
     prices_info = []
@@ -188,18 +203,22 @@ def seed_prices(conn_str, tickers, period ="3y"):
         "close" : "DECIMAL(12,4) NOT NULL",
         "volume" : "BIGINT"
     }
-    create_table_util.create_table(conn_str, "prices", prices_schema, "ticker, date")
+    create_table(conn_str, "prices", prices_schema, "ticker, date")
     with psycopg.connect(conn_str) as conn:
         with conn.cursor() as cur:
-            for asset in prices_info:
-                cur.execute("""INSERT INTO prices (ticker, date, close, volume)
+            insert_query = """INSERT INTO prices (ticker, date, close, volume)
                         VALUES (%s, %s, %s, %s)
                         ON CONFLICT (ticker, date) 
                         DO UPDATE SET 
                         close = EXCLUDED.close,
                         volume = EXCLUDED.volume
-                        """, (asset["ticker"], asset["date"], asset["close"], asset["volume"],))
-def seed_holdings(conn_str, tickers):
+                        """
+            prices_insert_data = []
+            for asset in prices_info:
+                prices_insert_data.append((asset["ticker"], asset["date"], asset["close"], asset["volume"]))
+            cur.executemany(insert_query, prices_insert_data)
+
+def seed_holdings(conn_str, common_tickers_list):
 
     holdings_schema = {
         "account_id": "INT NOT NULL",
@@ -207,19 +226,39 @@ def seed_holdings(conn_str, tickers):
         "shares": "DECIMAL(12, 4) NOT NULL",
 
     }
-    create_table_util.create_table(conn_str, "holdings", holdings_schema, "account_id, ticker")
+
+    archetype_initializers = {
+        "conservative" : portfolio_conservative(),
+        "moderate" : portfolio_moderate(),
+        "aggressive" : portfolio_aggressive(),
+        "crypto" : portfolio_crypto(),
+    }
+
+ 
+    prices_dict = dal.get_recent_prices(conn_str, common_tickers_list)
+
+    create_table(conn_str, "holdings", holdings_schema, "account_id, ticker")
+    
+    holdings_each_account = []
     with psycopg.connect(conn_str) as conn:
         with conn.cursor() as cur:
-            cur.execute("SELECT account_id FROM accounts")
-            accounts = [row[0] for row in cur.fetchall()]
+            cur.execute("SELECT account_id, starting_capital, archetype FROM accounts;")
+            accounts = cur.fetchall()
+            for account_id, starting_capital, archetype in accounts:
+                starting_capital = float(starting_capital)
+                builder = archetype_initializers.get(archetype)
+                if not builder:
+                    continue
+                holdings = builder.build(starting_capital, prices_dict)
+                for ticker, shares in holdings:
+                    holdings_each_account.append((account_id, ticker, shares))
 
-            for account_id in accounts:
-                owned = random.sample(tickers, k=random.randint(4, 17))
-                for ticker in owned:
-                    shares = random.uniform(0.1, 3) if ticker in ["BTC-USD", "ETH-USD"] else random.randint(1, 1500)
-                    cur.execute("""INSERT INTO holdings (account_id, ticker, shares)
-                                    VALUES (%s, %s, %s)
-                                    ON CONFLICT (account_id, ticker) DO UPDATE SET
-                                    shares = EXCLUDED.shares
-                                """, (account_id, ticker, shares,)
-                                )
+            insert_query = """INSERT INTO holdings (account_id, ticker, shares)
+                            VALUES (%s, %s, %s) 
+                            ON CONFLICT (account_id, ticker) DO UPDATE SET
+                            shares = EXCLUDED.shares;
+                            """
+            cur.executemany(insert_query, holdings_each_account)
+
+
+

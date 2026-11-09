@@ -2,7 +2,7 @@ from datetime import date, timedelta
 import psycopg
 import yfinance as yf
 import pandas as pd
-
+from . import db_setup
 
 
 def update_prices(conn_str):
@@ -10,7 +10,7 @@ def update_prices(conn_str):
             with psycopg.connect(conn_str) as conn:
                 with conn.cursor() as cur:
                     cur.execute("SELECT ticker, MAX(date) as date FROM prices GROUP BY ticker;")
-                    most_recent_entries = cur.fetchall() # result is tuple (tickerName, date)
+                    most_recent_entries = cur.fetchall()
                     for entry in most_recent_entries:
                         if entry[1] < today:
                             print(f"Updating info for {entry[0]}.")
@@ -33,4 +33,22 @@ def update_prices(conn_str):
 
                                     """, (row["Ticker"], row["Date"], row["Close"], row["Volume"],))
                     print(f"All ticker entries up to date.")
+
+def add_tickers(conn_str, new_tickers):
+     print(f"Adding tickers: {new_tickers}")
+     with psycopg.connect(conn_str) as conn:
+          with conn.cursor() as cur:
+               cur.execute("SELECT * FROM assets;")
+               current_tickers = [row[0] for row in cur.fetchall()]
+               print(current_tickers)
+               new_tickers = set(new_tickers) - set(current_tickers)
+               if not new_tickers:
+                    print("All tickers present")
+               else:
+                    print(f"Adding tickers: {new_tickers}")
+                    db_setup.seed_assets(conn_str, new_tickers)
+                    db_setup.seed_prices(conn_str, new_tickers)
                     
+
+                    
+     

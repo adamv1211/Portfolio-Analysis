@@ -1,7 +1,9 @@
 import psycopg
 import pandas as pd
+from decimal import Decimal
+from datetime import date
 
-def get_holdings_dat(conn_str, account_id):
+def get_holdings_dat(conn_str, account_id) -> pd.DataFrame:
     with psycopg.connect(conn_str) as conn:
             with conn.cursor() as cur:
                 holdings_dat_query = """
@@ -24,7 +26,22 @@ def get_holdings_dat(conn_str, account_id):
                 return holdings_dat_df
 
 
-def get_tbill_13w(conn_str, period ="3y"):
+def get_recent_prices(conn_str, tickers) -> dict[str, float]:
+     with psycopg.connect(conn_str) as conn:
+          with conn.cursor() as cur:
+               cur.execute ("""
+                              SELECT DISTINCT ON (ticker) ticker, close 
+                              FROM prices
+                              WHERE ticker = ANY(%s) 
+                              ORDER BY ticker DESC;
+                              """, (tickers,))
+               recent_prices = cur.fetchall()
+               recent_prices_dict = {ticker: float(price) for ticker, price in recent_prices}
+               return recent_prices_dict
+                     
+
+
+def get_tbill_13w(conn_str, period ="3y") -> pd.DataFrame:
      pg_period = period.replace("y", " years")
      with psycopg.connect(conn_str) as conn:
           with conn.cursor() as cur:
