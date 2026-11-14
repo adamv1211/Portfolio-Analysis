@@ -4,7 +4,7 @@ import psycopg
 from portfolio_data import dal
 
 
-def standard_returns(conn_str, tickers):
+def standard_returns(conn_str, tickers) -> tuple[pd.DataFrame, pd.Series]:
      with psycopg.connect(conn_str) as conn:
             with conn.cursor() as cur:
                 ticker_dat_query = """
@@ -24,13 +24,13 @@ def standard_returns(conn_str, tickers):
                 existing_tickers = [t for t in tickers if t in ticker_dat_df_wide.columns]
                 ticker_dat_df_wide = ticker_dat_df_wide[existing_tickers]
                 
-                ticker_dat_df_wide = ticker_dat_df_wide.ffill()
                 business_calendar = pd.bdate_range(start= ticker_dat_df_wide.index.min(), end= ticker_dat_df_wide.index.max())
+                ticker_dat_df_wide = ticker_dat_df_wide.ffill()
                 ticker_dat_df_wide = ticker_dat_df_wide.reindex(business_calendar)
                 return ticker_dat_df_wide.pct_change().dropna(how="all"), ticker_dat_df_wide.iloc[-1]
 
 
-def log_returns(conn_str, tickers):
+def log_returns(conn_str, tickers) -> tuple[pd.DataFrame, pd.Series]:
     with psycopg.connect(conn_str) as conn:
             with conn.cursor() as cur:
                 ticker_dat_query = """
@@ -50,18 +50,18 @@ def log_returns(conn_str, tickers):
                 existing_tickers = [t for t in tickers if t in ticker_dat_df_wide.columns]
                 ticker_dat_df_wide = ticker_dat_df_wide[existing_tickers]
                 
-                ticker_dat_df_wide = ticker_dat_df_wide.ffill()
                 business_calendar = pd.bdate_range(start= ticker_dat_df_wide.index.min(), end= ticker_dat_df_wide.index.max())
+                ticker_dat_df_wide = ticker_dat_df_wide.ffill()
                 ticker_dat_df_wide = ticker_dat_df_wide.reindex(business_calendar)
 
                 return np.log(ticker_dat_df_wide / ticker_dat_df_wide.shift(1)).dropna(how="all"), ticker_dat_df_wide.iloc[-1]
                 
 
 
-def sharpe(conn_str, account_id, period='3y'):
+def sharpe(conn_str, account_id, period="3y"):
      holdings_df = dal.get_holdings_dat(conn_str, account_id)
      indexed_holdings_df = holdings_df.set_index('ticker')
-     standard_returns_df_wide, R_0_array = standard_returns(conn_str, holdings_df["ticker"].tolist())
+     standard_returns_df_wide, current_prices = standard_returns(conn_str, holdings_df["ticker"].tolist())
 
      tbill_13w_dat_df = dal.get_tbill_13w(conn_str, period)
      tbill_13w_dat_df['date'] = pd.to_datetime(tbill_13w_dat_df['date'])
@@ -70,9 +70,9 @@ def sharpe(conn_str, account_id, period='3y'):
      
      R_f_daily_df = (1 + (tbill_13w_dat_df['close']/100)) ** (1/252) -1
      
-     weighted_returns = standard_returns_df_wide.dot(indexed_holdings_df['weight'])
+     daily_returns = standard_returns_df_wide.dot(indexed_holdings_df['weight'])
 
-     excess_returns = weighted_returns.subtract(R_f_daily_df, axis=0)
+     excess_returns = daily_returns.subtract(R_f_daily_df, axis=0)
      excess_returns = excess_returns.dropna()
   
      E_t = excess_returns.mean()
@@ -80,10 +80,39 @@ def sharpe(conn_str, account_id, period='3y'):
      return E_t / sigma_E * 252 ** 0.5
 
 
-def value_at_risk_parametric(conn_str, account_id, p=0.95, T=252):
+def sortino_discrete(conn_str, account_id, period="3y", use_tbill=True):
+     holdings_df = dal.get_holdings_dat(conn_str, account_id)
+     indexed_holdings_df = holdings_df.set_index("ticker")
+     standard_returns_df_wide, current_prices = standard_returns(conn_str, holdings_df["ticker"].tolist())
+     daily_returns = standard_returns_df_wide.dot(indexed_holdings_df["weight"])
+
+     N = len(daily_returns)
+     A = len(daily_returns) / int(period[:-1])
+
+     if use_tbill:
+          R_f_df = dal.get_tbill_13w(conn_str, period)
+          R_f_indexed_df = R_f_df.set_index("date")["close"] / 100
+          R_f_daily = pd.Series(daily_returns.index.map(R_f_indexed_df)).ffill().bfill() / A
+          R_f_annual = R_f_df["close"].mean() / 100
+     else:
+          R_f_annual = 0.0
+          R_f_daily = R_f_annual / A
+
+
+     R_p = daily_returns.mean() * A
+
+     downside_deviation = np.sqrt((1/N) * ((np.minimum(0, daily_returns - R_f_daily)) ** 2).sum()) * np.sqrt(A)
+     if downside_deviation == 0:
+          return np.inf if (R_p - R_f_annual) > 0 else 0.0
+     sortino =  (R_p - R_f_annual) / downside_deviation
+     
+     return sortino
+
+
+def value_at_risk_parametric(conn_str, account_id, p=0.95, T=252) -> dict:
      holdings_df = dal.get_holdings_dat(conn_str, account_id)
      indexed_holdings_df = holdings_df.set_index('ticker')
-     log_returns_df_wide, R_0_array = log_returns(conn_str, holdings_df["ticker"].tolist())
+     log_returns_df_wide, current_prices = log_returns(conn_str, holdings_df["ticker"].tolist())
      
      #Calculations for z score for given confidence interval p
      q = p if p < 0.5 else 1 - p

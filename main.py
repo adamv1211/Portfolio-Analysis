@@ -11,7 +11,7 @@ from get_tickers import get_all_us_tickers, get_common_ticker_dict,get_common_ti
          
 def main():
 
-    force_rebuild = True
+    force_rebuild = False
 
     if os.path.exists(".env"):
         with open(".env") as f:
@@ -41,7 +41,6 @@ def main():
     tickers_in_use.sort()
     period = "10y"
 
-    print(tickers_in_use)
 
     if force_rebuild:
         rebuild = True
@@ -66,9 +65,11 @@ def main():
     T=252 # T = DAYS (time steps)
 
     # print("Recent prices")
-    # print(dal.get_recent_prices(conn_str, tickers))
+    # print(dal.get_recent_prices(conn_str, tickers_in_use))
     # print("Holdings")
     # print(dal.get_holdings_dat(conn_str, account_number))
+    # print("13 week tBill")
+    # print(dal.get_tbill_13w(conn_str))
     # print("VaR")
     # print(metrics.value_at_risk_parametric(conn_str, account_number))
     # print("Sharpe Ratio")
@@ -77,6 +78,8 @@ def main():
     # print(gbm.gbm_discrete(conn_str, account_number, N, T, False))
     # print("gbm closed")
     # print(gbm.gbm_closed(conn_str, account_number, N, T, True))
+    # print("Sortino_discrete")
+    # print(metrics.sortino_discrete(conn_str, account_number))    
     
 
 if __name__ == "__main__":

@@ -12,7 +12,9 @@ def update_prices(conn_str):
                     cur.execute("SELECT ticker, MAX(date) as date FROM prices GROUP BY ticker;")
                     most_recent_entries = cur.fetchall()
                     for entry in most_recent_entries:
-                        if entry[1] < today:
+                        if entry[0] == "CASH-USD":
+                             continue
+                        elif entry[1] < today:
                             print(f"Updating info for {entry[0]}.")
                             ticker_info_download = yf.download(entry[0], start=(entry[1]+timedelta(days=1)), timeout=10)
                             if ticker_info_download is None:

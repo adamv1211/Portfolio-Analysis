@@ -7,6 +7,8 @@ from functools import partial
 from random_portfolio_builder import portfolio_base, portfolio_conservative, portfolio_moderate, portfolio_aggressive, portfolio_crypto
 from portfolio_data import dal
 from get_tickers import get_common_ticker_list
+from datetime import datetime, timedelta
+import pandas as pd
 
 def db_reset(db_name, admin_conn_str):
     with psycopg.connect(admin_conn_str) as conn:
@@ -172,6 +174,8 @@ def seed_assets(conn_str, tickers):
     
     with psycopg.connect(conn_str) as conn:
         with conn.cursor() as cur:
+            cur.execute("INSERT INTO assets (ticker, name, asset_type, currency) VALUES ('CASH-USD', 'US Dollar', 'CURRENCY', 'USD' ) ON CONFLICT (ticker) DO NOTHING;")
+
             insert_query = """INSERT INTO assets (ticker, name, asset_type, currency) 
                     VALUES (%s, %s, %s, %s) 
                     ON CONFLICT (ticker) DO UPDATE SET
@@ -185,11 +189,30 @@ def seed_assets(conn_str, tickers):
 
 
 def seed_prices(conn_str, tickers, period ="3y"):
+    #This if/else block is needed to add in the constant "CASH-USD" price data over the time interval
+    time_unit = period[-1]
+    time_value = int(period[:-1])
+    yesterday = datetime.today() - pd.DateOffset(days=1)
+    yesterday_str = yesterday.strftime("%Y-%m-%d")
+    if time_unit == "y":
+        start_date = yesterday - pd.DateOffset(years=time_value)
+    elif time_unit == "m":
+        start_date = yesterday - pd.DateOffset(months=time_value)
+    elif time_unit == "d":
+        start_date = yesterday - pd.DateOffset(days=time_value)
+    else:
+        raise ValueError(f"Error, unsupported period format: {period}")
+    cash_start_date = start_date.strftime("%Y-%m-%d")
+
+
     prices_info = []
     for i in tickers:
         tikr = yf.Ticker(i)
         price_hist = tikr.history(period)
-        for date, r in price_hist.iterrows():   
+        for date, r in price_hist.iterrows():
+            date_str = date.strftime("%Y-%m-%d")
+            if date_str > yesterday_str:
+                continue   
             prices_info.append({
                 "ticker" : i,
                 "date" : date.strftime("%Y-%m-%d"),
@@ -206,6 +229,17 @@ def seed_prices(conn_str, tickers, period ="3y"):
     create_table(conn_str, "prices", prices_schema, "ticker, date")
     with psycopg.connect(conn_str) as conn:
         with conn.cursor() as cur:
+            cash_insert = """INSERT INTO prices (ticker, date, close, volume)
+                            SELECT 'CASH-USD', d::date, 1.00::DECIMAL, 0
+                            FROM generate_series(%s::date, %s::date, INTERVAL '1 day') AS d
+                            WHERE EXTRACT(ISODOW FROM d) IN (1, 2, 3, 4, 5)
+                            ON CONFLICT (ticker, date) DO UPDATE SET 
+                            close = EXCLUDED.close;
+                        """
+            cur.execute(cash_insert, (cash_start_date, yesterday))
+
+
+
             insert_query = """INSERT INTO prices (ticker, date, close, volume)
                         VALUES (%s, %s, %s, %s)
                         ON CONFLICT (ticker, date) 
