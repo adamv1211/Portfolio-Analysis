@@ -4,7 +4,7 @@ A high-performance Python framework for brokerage environment simulation and ris
 **Project Status** Features are still being added and worked on as my education in the subject matter increases. The features listed in this Readme are finished.
 
 Overview
-This project's goal is to simulate a full-scale brokerage environment. By generating a synthetic population of 1,000 clients and 2,000 diversified accounts(including crypto), the engine provides a robust playground for stress-testing financial models and portfolio strategies.
+This project's goal is to simulate a full-scale brokerage environment. By generating a synthetic population of 1,000 clients and 2,000 diversified accounts(including crypto), the engine provides a robust playground for stress-testing financial models.
 
 Core Architecture
 The system is built on a Modular ETL Pipeline designed for high scalability and separation of concerns:
@@ -12,6 +12,7 @@ The system is built on a Modular ETL Pipeline designed for high scalability and 
 Data Acquisition: Automated ingestion of live market data via yfinance.
 
 Storage: PostgreSQL database managed via psycopg3, featuring optimized schema design for time-series price data.
+
 
 db_setup.py: 
 Includes functions for setting up database and seeding tables.
@@ -43,15 +44,30 @@ create_table_util.py - A function used  to create new postgres tables.
 
 Models:
 
+Jump_diffusion_discrete
+
+The closed form of Merton's jump diffusion is a popular option pricing model. Since I do not import option prices (yet) I implemented the discrete form to simulate stock price trajectories. Log returns were used so the formula may be slightly different than some textbook variants.
+
+$$\Delta \ln S_{i, t} = \left (\mu_i - \frac{1}{2}\sigma_i^2 \right) \Delta t + \sigma_i \sqrt{\Delta t} W_{i, t} + J_{i, t}$$
+
+Compunding returns
+$$\ln S_{i, t} = \ln S_{i, 0} + \sum_{k=1}^{t} \Delta \ln S_{i, k}$$
+
+Asset price level comversion 
+$$S_{i, t} = S_{i, 0} \exp(\ln S_{i, t})$$
+
+and finally, new estimated portfolio value
+$$V_T = \mathbf{S}_T \cdot \mathbf{shares} = \sum_{i=1}^{\text{num\_assets}} S_{i, T} \cdot \text{shares}_i$$
+
 gbm.py: Includes discrete and closed-form Geometric Brownian Motion. 
 
 Closed form:
-
-$$V_{\text{portfolio}} = \sum_{i} q_i S_{i,0} \exp\left(\left(\mu_i - \frac{1}{2}\sigma_i^2 \right) T + \sigma_i \sqrt{T} Z_i \right)$$
+Log returns were used here so ito's Lemma was not needed.
+$$V_{\text{portfolio}} = \sum_{i} q_i S_{i,0} \exp\left(\mu_i T + \sigma_i \sqrt{T} Z_i \right)$$
 
 The discrete function uses a modified version of the closed form function:
 
-$$V^{(n)} = \sum_{i} q_i S_{i, 0} \exp\left(\sum_{k=1}^{T}( \mu_i + \sigma_i W_{i, k}^{(n)})\right)$$
+$$V{(n)} = \sum_{i} q_i S_{i, 0} \exp\left(\sum_{k=1}^{T}( \mu_i + \sigma_i W_{i, k}^{(n)})\right)$$
 
 
 metrics.py: A statistical engine for calculating Sharpe Ratios, Log-Returns, and Value at Risk (VaR).
