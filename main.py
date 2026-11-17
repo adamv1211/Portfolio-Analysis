@@ -3,7 +3,7 @@ import os
 import yfinance as yf
 import psycopg
 from db_functions import db_setup, db_update 
-from models import gbm
+from models import gbm, jump_diffusion
 from portfolio_data import dal, metrics
 from get_tickers import get_all_us_tickers, get_common_ticker_dict,get_common_ticker_list
 
@@ -79,7 +79,9 @@ def main():
     # print("gbm closed")
     # print(gbm.gbm_closed(conn_str, account_number, N, T, True))
     # print("Sortino_discrete")
-    # print(metrics.sortino_discrete(conn_str, account_number))    
+    # print(metrics.sortino_discrete(conn_str, account_number))
+    # print("jump_diffusion_discrete") 
+    jump_diffusion.jump_diffusion_discrete(conn_str, account_number, N, T) 
     
 
 if __name__ == "__main__":

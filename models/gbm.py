@@ -15,10 +15,11 @@ if full_display:
     pd.set_option("display.width", 1000)
 
 def gbm_discrete(conn_str, account_id, N, T, graph=False):
-    holdings_df = dal.get_holdings_dat(conn_str, account_id)
+    holdings_df = dal.get_holdings_dat_cashless(conn_str, account_id)
     indexed_holdings_df = holdings_df.set_index('ticker')
 
-    log_returns, S_0_array = metrics.log_returns(conn_str, holdings_df['ticker'].tolist())
+    log_returns, S_0_array = metrics.log_returns_cashless(conn_str, holdings_df['ticker'].tolist())
+    
     cov_matrix = log_returns.cov().values
     mu_array = log_returns.mean().values
     sigma_array = log_returns.std().values
@@ -43,10 +44,10 @@ def gbm_discrete(conn_str, account_id, N, T, graph=False):
 
 
 def gbm_closed(conn_str, account_id, N, T, graph=False):
-    holdings_df = dal.get_holdings_dat(conn_str, account_id)
-    indexed_holdings_df = holdings_df.set_index('ticker')
+    holdings_df = dal.get_holdings_dat_cashless(conn_str, account_id)
+    indexed_holdings_df = holdings_df.set_index("ticker")
 
-    log_returns, S_0_array = metrics.log_returns(conn_str, holdings_df['ticker'].tolist())
+    log_returns, S_0_array = metrics.log_returns_cashless(conn_str, holdings_df["ticker"].tolist())
     
     cov_matrix = log_returns.cov().values
     mu_array = log_returns.mean().values

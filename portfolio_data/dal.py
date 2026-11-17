@@ -2,6 +2,7 @@ import psycopg
 import pandas as pd
 from decimal import Decimal
 from datetime import date
+from cash_drop_util import _cash_drop
 
 def get_holdings_dat(conn_str, account_id) -> pd.DataFrame:
     with psycopg.connect(conn_str) as conn:
@@ -24,6 +25,10 @@ def get_holdings_dat(conn_str, account_id) -> pd.DataFrame:
                 holdings_dat_df = pd.DataFrame(cur.fetchall(), columns=["ticker", "shares", "close", "value", "weight", "name", "type", "currency"])
                 holdings_dat_df[['close', 'value', 'weight']] = holdings_dat_df[['close', 'value', 'weight']].astype(float)
                 return holdings_dat_df
+def get_holdings_dat_cashless(conn_str, account_id) -> pd.DataFrame:
+     input_df = get_holdings_dat(conn_str, account_id)
+     cashless_df = input_df[input_df["ticker"] != "CASH-USD"]
+     return cashless_df
 
 
 def get_recent_prices(conn_str, tickers) -> dict[str, float]:
