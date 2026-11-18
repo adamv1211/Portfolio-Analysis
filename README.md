@@ -79,6 +79,9 @@ standard_returns(conn_str, tickers)
 
 log_returns(conn_str, tickers)
 
+Sortino ratio:
+
+$$\text{Sortino} = \frac{R_p - R_f}{\sqrt{\frac{1}{N} \sum_{t=1}^{N} \min\left(0, \, R_{p,t} - R_{f,\text{daily}}\right)^2} \times \sqrt{A}}$$
 
 Sharpe ratio:
 
