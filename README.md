@@ -57,7 +57,7 @@ Asset price level comversion
 $$S_{i, t} = S_{i, 0} \exp(\ln S_{i, t})$$
 
 and finally, new estimated portfolio value
-$$V_T = \mathbf{S}_T \cdot \mathbf{shares} = \sum_{i=1}^{\text{num\_assets}} S_{i, T} \cdot \text{shares}_i$$
+$$V_T = S_T \cdot \text{shares} = \sum_{i=1}^{N} S_{i, T} \times \text{shares}_i$$
 
 gbm.py: Includes discrete and closed-form Geometric Brownian Motion. 
 
