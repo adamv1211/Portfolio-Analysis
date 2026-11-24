@@ -38,7 +38,7 @@ def get_recent_prices(conn_str, tickers) -> dict[str, float]:
                               SELECT DISTINCT ON (ticker) ticker, close 
                               FROM prices
                               WHERE ticker = ANY(%s) 
-                              ORDER BY ticker DESC;
+                              ORDER BY ticker DESC, date DESC;
                               """, (tickers,))
                recent_prices = cur.fetchall()
                recent_prices_dict = {ticker: float(price) for ticker, price in recent_prices}

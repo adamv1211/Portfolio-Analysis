@@ -6,10 +6,12 @@ import random
 
 
 
-def get_all_us_tickers():
+def get_all_us_tickers(edgar_email):
+    if not edgar_email:
+        raise ValueError("Missing email. Required to pull tickers from Edgar")
     url = "https://www.sec.gov/files/company_tickers.json"
     EDGAR_headers ={
-        "User-Agent" : "AnalysisSimEngine ProjectAdmin adamv1211@gmail.com"
+        "User-Agent" : f"AnalysisSimEngine ProjectAdmin {edgar_email}"
     }
     try:
         response =  requests.get(url, headers=EDGAR_headers, timeout=10)

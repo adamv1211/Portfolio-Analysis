@@ -18,12 +18,12 @@ def db_reset(db_name, admin_conn_str):
     print(f"Database {db_name} DROPPED...")
 
 
-def db_create(db_name, admin_conn_str):
+def db_create(db_name, db_user, admin_conn_str):
     with psycopg.connect(admin_conn_str) as conn:
         conn.autocommit = True
         with conn.cursor() as cur:
             try:
-                cur.execute(f"CREATE DATABASE {db_name} OWNER adam;")
+                cur.execute(f"CREATE DATABASE {db_name} OWNER {db_user};")
                 print(f"Database {db_name} Added...")
             except psycopg.errors.DuplicateDatabase:
                 pass
